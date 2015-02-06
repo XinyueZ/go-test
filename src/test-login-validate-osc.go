@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 const (
@@ -60,7 +59,7 @@ type User struct {
 
 func main() {
 	chUser := make(chan *User)
-	chLogin := make(chan string)
+	chLogin := make(chan *http.Cookie)
 	chTweetList := make(chan string)
 	chTweetPub := make(chan string)
 	defer func() {
@@ -73,29 +72,29 @@ func main() {
 	}()
 	go login(ACCOUNT, PWD, chLogin, chUser)
 	cookie := <-chLogin //Got user session.
-  cookie = "oscid=" + cookie
+	session := "oscid=" + cookie.Value
 	puser := <-chUser
-	if cookie != "" {
-		fmt.Println(cookie)
+	if cookie != nil {
+		fmt.Println("cookie:" + cookie.Value)
+		fmt.Println("expires:" + cookie.Expires.String())
 		fmt.Println(puser.Uid)
-		go printTweetList(puser, cookie, 1, chTweetList)
+		go printTweetList(puser, session, 1, chTweetList)
 		tweetListContent := <-chTweetList
 		if tweetListContent != "" {
 			fmt.Println(tweetListContent)
 			//Just a randem msg
-			if editTime, err := strconv.ParseInt(time.Now().Local().Format("20060102150405"), 10, 64); err == nil {
-				msgRandem := fmt.Sprintf("我的时间: %d", editTime)
-				go pubTweet(puser, cookie, msgRandem, chTweetPub)
-				pubContent := <-chTweetPub
-				if pubContent != "" {
-					fmt.Println(pubContent)
-				}
+			msgRandem := "冬天了，好冷"
+			go pubTweet(puser, session, msgRandem, chTweetPub)
+			pubContent := <-chTweetPub
+			if pubContent != "" {
+				fmt.Println(pubContent)
+
 			}
 		}
 	}
 }
 
-func login(account string, password string, cookieCh chan string, userCh chan *User) {
+func login(account string, password string, cookieCh chan *http.Cookie, userCh chan *User) {
 	fmt.Println("Login.")
 	client := new(http.Client)
 	body := fmt.Sprintf(LOGIN_SCHEME, account, password)
@@ -105,7 +104,7 @@ func login(account string, password string, cookieCh chan string, userCh chan *U
 		makeHeader(r, "", len(body))
 		if resp, e := client.Do(r); e == nil {
 			fmt.Println(resp.Status)
-			var cookie string = ""
+			var cookie *http.Cookie
 			if resp != nil {
 				defer resp.Body.Close()
 			}
@@ -114,9 +113,10 @@ func login(account string, password string, cookieCh chan string, userCh chan *U
 				if err := xml.Unmarshal(bytes, &posc); err == nil {
 					for _, v := range resp.Cookies() {
 						if v.Value != "" {
-							cookie = v.Value
-							break
+							cookie = v
+							//break
 						}
+						fmt.Println(v)
 					}
 					cookieCh <- cookie
 					userCh <- &(posc.User)
@@ -135,13 +135,13 @@ func login(account string, password string, cookieCh chan string, userCh chan *U
 	}
 }
 
-func printTweetList(puser *User, cookie string, page int, ch chan string) {
+func printTweetList(puser *User, session string, page int, ch chan string) {
 	fmt.Println("Get Tweet-List.")
 	client := new(http.Client)
 	url := fmt.Sprintf(TWEET_LIST, puser.Uid, page)
 	fmt.Println(url)
 	if r, e := http.NewRequest(GET, url, nil); e == nil {
-		makeHeader(r, cookie, 0)
+		makeHeader(r, session, 0)
 		if resp, e := client.Do(r); e == nil {
 			fmt.Println(resp.Status)
 			if resp != nil {
@@ -160,7 +160,7 @@ func printTweetList(puser *User, cookie string, page int, ch chan string) {
 	}
 }
 
-func pubTweet(puser *User, cookie string, msg string, ch chan string) {
+func pubTweet(puser *User, session string, msg string, ch chan string) {
 	fmt.Printf("Pub Tweet: %s\n", msg)
 	client := new(http.Client)
 	url := TWEET_PUB
@@ -168,7 +168,7 @@ func pubTweet(puser *User, cookie string, msg string, ch chan string) {
 	body := fmt.Sprintf(TWEET_PUB_SCHEME, puser.Uid, msg)
 	fmt.Println(body)
 	if r, e := http.NewRequest(POST, url, bytes.NewBufferString(body)); e == nil {
-		makeHeader(r, cookie, len(body))
+		makeHeader(r, session, len(body))
 		printHeader(r)
 		if resp, e := client.Do(r); e == nil {
 			fmt.Println(resp.Status)
