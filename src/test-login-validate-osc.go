@@ -20,9 +20,9 @@ const (
 	KEEP_ALIVE          = "Keep-Alive"
 	LOGIN_SCHEME        = `username=%s&pwd=%s&keep_login=1`
 	LOGIN_VALIDATE_HTTP = HOST + "login_validate"
-	TWEET_LIST          = HOST + "tweet_list?uid=%s&pageIndex=%d&pageSize=25"
+	TWEET_LIST          = HOST + "tweet_list?uid=0&pageIndex=%d&pageSize=25"
 	TWEET_PUB           = HOST + "tweet_pub"
-	TWEET_PUB_SCHEME    = "uid=%s&msg=%s"
+	TWEET_PUB_SCHEME    = "uid=%d&msg=%s"
 )
 
 type Error string
@@ -53,7 +53,7 @@ type OsChina struct {
 }
 
 type User struct {
-	Uid  string `xml:"uid"`
+	Uid  int `xml:"uid"`
 	Name string `xml:"name"`
 }
 
@@ -78,12 +78,12 @@ func main() {
 		fmt.Println("cookie:" + cookie.Value)
 		fmt.Println("expires:" + cookie.Expires.String())
 		fmt.Println(puser.Uid)
-		go printTweetList(puser, session, 1, chTweetList)
+		go printTweetList(puser, session, 0, chTweetList)
 		tweetListContent := <-chTweetList
 		if tweetListContent != "" {
 			fmt.Println(tweetListContent)
 			//Just a randem msg
-			msgRandem := "冬天了，好冷"
+			msgRandem := "good night"
 			go pubTweet(puser, session, msgRandem, chTweetPub)
 			pubContent := <-chTweetPub
 			if pubContent != "" {
@@ -138,7 +138,7 @@ func login(account string, password string, cookieCh chan *http.Cookie, userCh c
 func printTweetList(puser *User, session string, page int, ch chan string) {
 	fmt.Println("Get Tweet-List.")
 	client := new(http.Client)
-	url := fmt.Sprintf(TWEET_LIST, puser.Uid, page)
+	url := fmt.Sprintf(TWEET_LIST, page)
 	fmt.Println(url)
 	if r, e := http.NewRequest(GET, url, nil); e == nil {
 		makeHeader(r, session, 0)
