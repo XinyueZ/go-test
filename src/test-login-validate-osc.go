@@ -83,13 +83,14 @@ func main() {
 		if tweetListContent != "" {
 			fmt.Println(tweetListContent)
 			//Just a randem msg
-			msgRandem := "good night"
+			/*
+			msgRandem := `马上要放长假了， 开心。 <img src="http://www.oschina.net/js/ke/plugins/emoticons/23.gif" alt="23">`
 			go pubTweet(puser, session, msgRandem, chTweetPub)
 			pubContent := <-chTweetPub
 			if pubContent != "" {
 				fmt.Println(pubContent)
 
-			}
+			}*/
 		}
 	}
 }

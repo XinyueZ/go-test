@@ -1,7 +1,8 @@
 package main
 
-
 const (
-  ACCOUNT             = ""
-  PWD                 = ""
+	ACCOUNT = "ACCOUNT"
+	PWD     = "PWD"
+	APP_ID  = "APP_ID"
+	APP_SEC = "APP_SEC"
 )
